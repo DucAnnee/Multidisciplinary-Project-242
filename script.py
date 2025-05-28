@@ -145,45 +145,29 @@ class_names = data["names"]
 
 
 # Custom Retina cls head with dropout
-class RetinaClassificationHeadDropout(nn.Module):
+class RetinaClassificationHeadDropout(RetinaNetClassificationHead):
     def __init__(
         self,
-        in_channels,
-        num_anchors,
-        num_classes,
-        num_convs=4,
-        prior_prob=0.01,
-        dropout=0.1,
+        in_channels: int,
+        num_anchors: int,
+        num_classes: int,
+        prior_probability: float = 0.01,
+        norm_layer=None,
+        dropout: float = 0.1,
     ):
-        super().__init__()
-        layers = []
-        for _ in range(num_convs):
-            layers.append(nn.Conv2d(in_channels, in_channels, kernel_size=3, padding=1))
-            layers.append(nn.ReLU(inplace=True))
-            layers.append(nn.Dropout(p=dropout))
-        self.cls_subnet = nn.Sequential(*layers)
-
-        self.cls_score = nn.Conv2d(
-            in_channels, num_anchors * num_classes, kernel_size=3, padding=1
+        super().__init__(
+            in_channels=in_channels,
+            num_anchors=num_anchors,
+            num_classes=num_classes,
+            prior_probability=prior_probability,
+            norm_layer=norm_layer,
         )
-
-        for module in list(self.cls_subnet) + [
-            self.cls_score
-        ]:  # TODO: might switch to kaiming init? later
-            if isinstance(module, nn.Conv2d):
-                nn.init.normal_(module.weight, mean=0, std=0.01)
-                nn.init.constant_(module.bias, 0)
-
-        # Set bias for focal loss as in the original paper
-        bias_value = -math.log((1 - prior_prob) / prior_prob)
-        nn.init.constant_(self.cls_score.bias, bias_value)
-
-    def forward(self, features):
-        logits = []
-        for x in features:
-            t = self.cls_subnet(x)
-            logits.append(self.cls_score(t))
-        return logits
+        # Insert Dropout after each Conv2dNormActivation module in self.conv
+        new_conv_layers = []
+        for layer in self.conv:
+            new_conv_layers.append(layer)
+            new_conv_layers.append(nn.Dropout(p=dropout))
+        self.conv = nn.Sequential(*new_conv_layers)
 
 
 def main_worker(rank, world_size):
@@ -429,6 +413,4 @@ def main_worker(rank, world_size):
 
 if __name__ == "__main__":
     world_size = torch.cuda.device_count()
-    # ChatGPT solution: "Force “fork” start method so spawn() can see main". Might dive deeper into this later
-    mp.set_start_method("fork", force=True)
     mp.spawn(main_worker, args=(world_size,), nprocs=world_size, join=True)
