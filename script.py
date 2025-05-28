@@ -296,14 +296,14 @@ def main_worker(rank, world_size):
         # 3) Validation + COCOeval (only rank 0 needs to do it)
         if rank == 0:
             model.eval()
-            all_dets, all_tgts = [], []
+            all_dets, all_targets = [], []
 
             with torch.no_grad():
                 for images, targets in val_loader:
-                    imgs_cuda = [img.to(rank) for img in images]
-                    tgts_cuda = [{k: v.to(rank) for k, v in t.items()} for t in targets]
+                    images = [img.to(rank) for img in images]
+                    targets = [{k: v.to(rank) for k, v in t.items()} for t in targets]
 
-                    outputs = model(imgs_cuda)
+                    outputs = model(images)
                     # collect predictions
                     for out in outputs:
                         all_dets.append(
@@ -315,7 +315,7 @@ def main_worker(rank, world_size):
                         )
                     # collect GT
                     for t in targets:
-                        all_tgts.append(
+                        all_targets.append(
                             {"boxes": t["boxes"].cpu(), "labels": t["labels"].cpu()}
                         )
 
@@ -326,7 +326,7 @@ def main_worker(rank, world_size):
                 "categories": [{"id": i, "name": n} for i, n in enumerate(class_names)],
             }
             ann_id = 0
-            for img_id, (tgt, img_path) in enumerate(zip(all_tgts, val_ds.images)):
+            for img_id, (tgt, img_path) in enumerate(zip(all_targets, val_ds.images)):
                 w, h = Image.open(img_path).size
                 coco_gt["images"].append(
                     {"id": img_id, "width": w, "height": h, "file_name": img_path.name}
@@ -411,6 +411,11 @@ def main_worker(rank, world_size):
     dist.destroy_process_group()
 
 
-if __name__ == "__main__":
+def main():
     world_size = torch.cuda.device_count()
     mp.spawn(main_worker, args=(world_size,), nprocs=world_size, join=True)
+
+
+if __name__ == "__main__":
+    mp.set_start_method("fork", force=True)
+    main()
