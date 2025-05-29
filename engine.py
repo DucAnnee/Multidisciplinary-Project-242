@@ -133,7 +133,14 @@ def eval_one_epoch(
                     "score": float(score.item()),
                 }
             )
-
+    if len(coco_dt) == 0:
+        print("Warning: no detections in this epoch; skipping COCO eval.")
+        return {
+            "eval/mAP5095": 0.0,
+            "eval/mAP50": 0.0,
+            "eval/recall": 0.0,
+            "eval/precision": 0.0,
+        }
     cocoDt = cocoGt.loadRes(coco_dt)
     cocoEval = COCOeval(cocoGt, cocoDt, iouType="bbox")
     cocoEval.evaluate()
