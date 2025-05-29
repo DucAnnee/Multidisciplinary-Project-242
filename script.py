@@ -9,8 +9,6 @@ import torch.optim as optim
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
-mp.set_start_method("fork", force=True)
-
 
 from torchvision import transforms
 from torchvision.models.detection import (
@@ -215,4 +213,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.project_dir = Path(args.project_dir)
+    mp.set_start_method("fork", force=True)
     main(args)
