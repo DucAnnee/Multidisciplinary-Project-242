@@ -22,6 +22,7 @@ def train_one_epoch(
 
     # Training
     model.train()
+    optimizer.zero_grad()
     torch.cuda.empty_cache()
     accu_loss = 0.0
     if rank == 0:
@@ -36,8 +37,8 @@ def train_one_epoch(
         loss_dict = model(images, targets)
         loss = sum(loss for loss in loss_dict.values())
 
-        optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
 
         accu_loss += loss.item()
