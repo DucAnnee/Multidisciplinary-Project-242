@@ -128,7 +128,7 @@ def main_worker(rank, world_size, args):
                 "scheduler_state_dict": scheduler.state_dict(),
             }
 
-            ckpt_path = project_dir / "checkpoints" / f"retina_ep{epoch:03d}.pth"
+            ckpt_path = project_dir / "checkpoints" / f"last.pth"
             torch.save(ckpt, ckpt_path)
 
     if rank == 0:
