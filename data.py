@@ -3,6 +3,25 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from PIL import Image
+from torchvision import transforms
+
+
+# Transform
+def get_transform(img_size):
+    if img_size is None:
+        img_size = 640
+
+    transform = transforms.Compose(
+        [
+            transforms.Resize((img_size, img_size)),
+            transforms.ToTensor(),
+        ]
+    )
+    return transform
+
+
+def collate_fn(batch):
+    return tuple(zip(*batch))
 
 
 class YoloFormatDataset(Dataset):
@@ -69,16 +88,15 @@ class YoloFormatDataset(Dataset):
 
 def build_dataloader(
     data_dir,
-    transform,
+    img_size,
     rank,
     world_size,
     shuffle,
     batch_size,
-    collate_fn,
     num_workers=4,
     pin_memory=True,
 ):
-    dataset = YoloFormatDataset(data_dir, transforms=transform)
+    dataset = YoloFormatDataset(data_dir, transforms=get_transform(img_size))
     data_sampler = DistributedSampler(
         dataset, num_replicas=world_size, rank=rank, shuffle=shuffle
     )

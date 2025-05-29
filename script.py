@@ -9,8 +9,6 @@ import torch.optim as optim
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
-
-from torchvision import transforms
 from torchvision.models.detection import (
     RetinaNet_ResNet50_FPN_V2_Weights,
     retinanet_resnet50_fpn_v2,
@@ -40,17 +38,6 @@ def main_worker(rank, world_size, args):
     num_classes = args.num_classes
     seed = args.seed
 
-    # Transform
-    transform = transforms.Compose(
-        [
-            transforms.Resize((img_size, img_size)),
-            transforms.ToTensor(),
-        ]
-    )
-
-    def collate_fn(batch):
-        return tuple(zip(*batch))
-
     # Output dirs
     (project_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
     (project_dir / "logs").mkdir(parents=True, exist_ok=True)
@@ -70,10 +57,10 @@ def main_worker(rank, world_size, args):
 
     # Dataset, DistributedSampler, DataLoader
     train_dataset, train_loader, train_sampler = build_dataloader(
-        train_dir, transform, rank, world_size, True, batch_size, collate_fn
+        train_dir, img_size, rank, world_size, True, batch_size
     )
     val_dataset, val_loader, val_sampler = build_dataloader(
-        val_dir, transform, rank, world_size, False, batch_size, collate_fn
+        val_dir, img_size, rank, world_size, False, batch_size
     )
 
     # Model
