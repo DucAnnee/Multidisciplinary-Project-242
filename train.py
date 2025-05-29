@@ -152,25 +152,25 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser(description="MP242 Training Script")
     parser.add_argument(
-        "--data_yaml",
+        "--data-yaml",
         type=str,
         default="/kaggle/input/bok-choy-disease-detection-yolo-format/data.yaml",
         help="Path to the data.yaml file",
     )
     parser.add_argument(
-        "--project_dir",
+        "--project-dir",
         type=str,
         default="/kaggle/working/retinanet_bokchoy/",
         help="Directory for outputs (checkpoints, logs, etc.)",
     )
     parser.add_argument(
-        "--train_dir",
+        "--train-dir",
         type=str,
         default="/kaggle/input/bok-choy-disease-detection-yolo-format/train",
         help="Training images directory",
     )
     parser.add_argument(
-        "--val_dir",
+        "--val-dir",
         type=str,
         default="/kaggle/input/bok-choy-disease-detection-yolo-format/valid",
         help="Validation images directory",
@@ -178,25 +178,25 @@ if __name__ == "__main__":
     parser.add_argument(
         "--epochs", "-e", type=int, default=100, help="Number of training epochs"
     )
-    parser.add_argument("--batch_size", "-b", type=int, default=16, help="Batch size")
+    parser.add_argument("--batch-size", "-b", type=int, default=16, help="Batch size")
     parser.add_argument(
-        "--img_size", type=int, default=640, help="Input image size (square)"
+        "--img-size", type=int, default=640, help="Input image size (square)"
     )
     parser.add_argument(
         "--lr0", type=float, default=0.001, help="Initial learning rate"
     )
     parser.add_argument("--momentum", type=float, default=0.937, help="SGD momentum")
     parser.add_argument(
-        "--weight_decay", type=float, default=0.0005, help="Weight decay"
+        "--weight-decay", type=float, default=0.0005, help="Weight decay"
     )
     parser.add_argument(
-        "--dropout_p",
+        "--dropout-p",
         type=float,
         default=0.1,
         help="Dropout probability in classification head",
     )
     parser.add_argument(
-        "--num_classes", type=int, default=2, help="Number of target classes"
+        "--num-classes", type=int, default=2, help="Number of target classes"
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument(
