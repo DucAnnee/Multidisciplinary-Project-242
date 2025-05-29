@@ -33,7 +33,17 @@ This project aims to develop AI models for detecting diseases in bok choy plants
     python script.py --epochs 50 --batch-size 32 --lr0 0.001
     ```
 
-3. **Distributed Training**: Use the DDP setup for multi-GPU training. Refer to the ddp_init function for configuration details.
+3. **Distributed Training**: Use the DDP setup for multi-GPU training. Refer to the [`ddp_init`](ddp.py) function for configuration details.
+
+## WandB Logging (Optional)
+If you want to track the train process with [Weights & Biases](https://wandb.ai/), enabled it with `--enable-logger 1` when run the script. For detail configuration, see the [`wandb_init`](utils.py) function in [utils.py](utils.py). 
+
+Set your API key via environment variable or Kaggle secrets:
+    ```python
+    export WANDB_API_KEY=<your_api_key>
+    ```
+
+Or in Kaggle, add it via UserSecretsClient with key WANDB\_API\_KEY.
 
 ## License
 This project is licensed under the LICENSE file.
