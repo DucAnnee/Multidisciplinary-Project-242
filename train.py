@@ -37,6 +37,7 @@ def main_worker(rank, world_size, args):
     dropout_p = args.dropout_p
     num_classes = args.num_classes
     seed = args.seed
+    enable_logger = args.enable_logger
 
     # Output dirs
     (project_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
@@ -86,7 +87,7 @@ def main_worker(rank, world_size, args):
 
     # WandB
     logger = None
-    if rank == 0:
+    if rank == 0 and enable_logger:
         logger = wandb_init(lr0, epochs, batch_size)
 
     # Training loop
@@ -198,6 +199,12 @@ if __name__ == "__main__":
         "--num_classes", type=int, default=2, help="Number of target classes"
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument(
+        "--enable-logger",
+        type=int,
+        default=0,
+        help="Enable WandB logging. Defaults to 0 (disabled) ",
+    )
 
     args = parser.parse_args()
 
