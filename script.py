@@ -181,7 +181,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--img_size", type=int, default=640, help="Input image size (square)"
     )
-    parser.add_argument("--lr0", type=float, default=0.01, help="Initial learning rate")
+    parser.add_argument(
+        "--lr0", type=float, default=0.001, help="Initial learning rate"
+    )
     parser.add_argument("--momentum", type=float, default=0.937, help="SGD momentum")
     parser.add_argument(
         "--weight_decay", type=float, default=0.0005, help="Weight decay"
