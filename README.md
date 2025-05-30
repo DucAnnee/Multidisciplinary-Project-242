@@ -2,6 +2,15 @@
 
 This project is a part of my *Multidisciplinary Project* in semester 242 which aims to develop AI models for detecting diseases in bok choy plants. The project leverages deep learning techniques and distributed training to ensure scalability and efficiency. It is designed to be user-friendly and adaptable for various research and production environments.
 
+## Dataset
+The dataset is composed of two public datasets and converted to YOLO format. Links to the original author and datasets:
+- Author: https://universe.roboflow.com/hydromac
+- Datasets: 
+  1. https://universe.roboflow.com/hydromac/bok-choy-healthy
+  2. https://universe.roboflow.com/hydromac/bok-choy-diseased
+
+The dataset is available on Kaggle at: [Bok Choy Disease Detection](https://www.kaggle.com/datasets/nguynhcan/bok-choy-disease-detection-yolo-format)
+
 ## Features
 
 - **Distributed Data Parallel (DDP) Support**: The project includes DDP-friendly utilities, enabling efficient multi-GPU training. The [`ddp_init`](ddp.py) function in [ddp.py](ddp.py) simplifies the setup for distributed training.
