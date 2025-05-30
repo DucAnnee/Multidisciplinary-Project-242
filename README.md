@@ -33,7 +33,7 @@ This project aims to develop AI models for detecting diseases in bok choy plants
 
 2. **Train the Model**: Run the training script with desired arguments. For example:
     ```sh
-    python script.py --epochs 50 --batch-size 32 --lr0 0.001
+    python train.py --epochs 50 --batch-size 32 --lr0 0.001
     ```
 
 3. **Inferencing**: run the inference script with desired argument. For example:
