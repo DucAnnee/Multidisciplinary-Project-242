@@ -1,6 +1,6 @@
 # Multidisciplinary-Project-242: Bok Choy Disease Detection AI Project
 
-This project aims to develop AI models for detecting diseases in bok choy plants. The project leverages deep learning techniques and distributed training to ensure scalability and efficiency. It is designed to be user-friendly and adaptable for various research and production environments.
+This project is a part of my *Multidisciplinary Project* in semester 242 which aims to develop AI models for detecting diseases in bok choy plants. The project leverages deep learning techniques and distributed training to ensure scalability and efficiency. It is designed to be user-friendly and adaptable for various research and production environments.
 
 ## Features
 
