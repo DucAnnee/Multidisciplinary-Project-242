@@ -8,6 +8,8 @@ This project aims to develop AI models for detecting diseases in bok choy plants
 
 - **CLI Training Script**: A command-line interface (CLI) script ([train.py](train.py)) allows users to train models with customizable arguments. This makes it easy to experiment with different configurations without modifying the code.
 
+- **CLI Inferencing Script**: A command-line interface (CLI) script ([inference.py](inference.py)) allows users to inference the model with customizable arguments. 
+
 - **Custom Model Architecture**: The project includes a custom model architecture with a specialized classification head, [`RetinaClassificationHeadDropout`](model.py), designed for robust disease detection.
 
 - **Utility Functions**: Various helper functions in [utils.py](utils.py) streamline data processing, logging, and other tasks.
@@ -20,6 +22,7 @@ This project aims to develop AI models for detecting diseases in bok choy plants
 - **[utils.py](utils.py)**: Provides utility functions for data handling and other operations.
 - **[data.py](data.py)**: Handles data loading and preprocessing for training and evaluation.
 - **[engine.py](engine.py)**: Contains the training and evaluation loop logic.
+- **[inference.py](inference.py)**: CLI script for inferencing the model with configurable arguments. 
 
 ## How to Use
 
@@ -33,7 +36,12 @@ This project aims to develop AI models for detecting diseases in bok choy plants
     python script.py --epochs 50 --batch-size 32 --lr0 0.001
     ```
 
-3. **Distributed Training**: Use the DDP setup for multi-GPU training. Refer to the [`ddp_init`](ddp.py) function for configuration details.
+3. **Inferencing**: run the inference script with desired argument. For example:
+    ```sh
+    python inference.py --input-img ./sample_imgs/diseased1.jpg --threshold 0.2 --output_dir ./out_imgs --checkpoint-path ./best.pth
+    ```
+
+4. **Distributed Training**: Use the DDP setup for multi-GPU training. Refer to the [`ddp_init`](ddp.py) function for configuration details.
 
 ## WandB Logging (Optional)
 If you want to track the train process with [Weights & Biases](https://wandb.ai/), enabled it with `--enable-logger 1` when run the script. For detail configuration, see the [`wandb_init`](utils.py) function in [utils.py](utils.py). 
