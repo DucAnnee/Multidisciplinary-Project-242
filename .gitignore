@@ -174,3 +174,4 @@ cython_debug/
 .pypirc
 best.pth
 /out_imgs
+old_best.pth
