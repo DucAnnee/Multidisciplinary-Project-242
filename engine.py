@@ -1,11 +1,15 @@
 import torch
 from tqdm import tqdm
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from torchvision.ops import box_iou
 from PIL import Image
 import numpy as np
+import faster_coco_eval
+
+# Replace pycocotools with faster_coco_eval
+faster_coco_eval.init_as_pycocotools()
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
 
 EPS = 1e-16
 
@@ -169,7 +173,6 @@ def eval_one_epoch(
         "eval/precision": avg_prec,
     }
 
-    # log & checkpoint
     logger.log(stats)
     return stats
 
@@ -221,6 +224,7 @@ def eval_one_epoch_tm(
     tp_all = fp_all = fn_all = 0
 
     with torch.no_grad():
+        print("[eval_one_epoch_tm] Preparing to inference")
         for images, targets in val_loader:
             images = [img.to(rank) for img in images]
             targets = [{k: v.to(rank) for k, v in t.items()} for t in targets]
@@ -231,8 +235,11 @@ def eval_one_epoch_tm(
                 tp_all += tp
                 fp_all += fp
                 fn_all += fn
+        print("[eval_one_epoch_tm] Inference")
 
+    print("[eval_one_epoch_tm] Preparing to compute metrics")
     tm = metric.compute()  # dict of many COCO stats
+    print("[eval_one_epoch_tm] Metrics computed")
     mAP5095 = float(tm["map"])
     mAP50 = float(tm["map_50"])
 
