@@ -32,12 +32,14 @@ def main_worker(rank, world_size, args):
     batch_size = args.batch_size
     img_size = args.img_size
     lr0 = args.lr0
+    lrf = args.lrf
     momentum = args.momentum
     weight_decay = args.weight_decay
     dropout_p = args.dropout_p
     num_classes = args.num_classes
     seed = args.seed
     enable_logger = args.enable_logger
+    evaluate_api = args.evaluate_api
 
     # Output dirs
     (project_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
@@ -82,7 +84,7 @@ def main_worker(rank, world_size, args):
         model.parameters(), lr=lr0, momentum=momentum, weight_decay=weight_decay
     )
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=epochs, eta_min=1e-6
+        optimizer, T_max=epochs, eta_min=lrf
     )
 
     # WandB
@@ -109,9 +111,14 @@ def main_worker(rank, world_size, args):
 
         # Validation
         if rank == 0:
-            stats = eval_one_epoch_tm(
-                model, val_loader, val_dataset, class_names, rank, logger
-            )
+            if evaluate_api == "pycocotools":
+                stats = eval_one_epoch(
+                    model, val_loader, val_dataset, class_names, rank, logger
+                )
+            else:
+                stats = eval_one_epoch_tm(
+                    model, val_loader, val_dataset, class_names, rank, logger
+                )
             mAP5095 = stats["eval/mAP5095"]
 
             if mAP5095 > best_map:
@@ -183,7 +190,10 @@ if __name__ == "__main__":
         "--img-size", type=int, default=640, help="Input image size (square)"
     )
     parser.add_argument(
-        "--lr0", type=float, default=0.001, help="Initial learning rate"
+        "--lr0", type=float, default=0.010, help="Initial learning rate"
+    )
+    parser.add_argument(
+        "--lrf", type=float, default=0.00001, help="Final learning rate"
     )
     parser.add_argument("--momentum", type=float, default=0.937, help="SGD momentum")
     parser.add_argument(
@@ -204,6 +214,14 @@ if __name__ == "__main__":
         type=int,
         default=0,
         help="Enable WandB logging. Defaults to 0 (disabled) ",
+    )
+
+    parser.add_argument(
+        "--evaluate-api",
+        type=str,
+        default="pycocotools",
+        choices=["pycocotools", "torchmetrics"],
+        help="Evaluation framework to choose from. Defaulse to pycocotools",
     )
 
     args = parser.parse_args()
