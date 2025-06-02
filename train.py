@@ -1,5 +1,6 @@
 import random
 import yaml
+import json
 
 from argparse import ArgumentParser
 from pathlib import Path
@@ -41,10 +42,12 @@ def main_worker(rank, world_size, args):
     enable_logger = args.enable_logger
     evaluate_api = args.evaluate_api
     wandb_project = args.wandb_project
+    coco_json = args.coco_json
 
     # Output dirs
     (project_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
     (project_dir / "logs").mkdir(parents=True, exist_ok=True)
+    (project_dir / "eval").mkdir(parents=True, exist_ok=True)
 
     # Load data.yaml
     with open(data_yaml) as f:
@@ -61,10 +64,10 @@ def main_worker(rank, world_size, args):
 
     # Dataset, DistributedSampler, DataLoader
     train_dataset, train_loader, train_sampler = build_dataloader(
-        train_dir, img_size, rank, world_size, True, batch_size
+        train_dir, img_size, rank, world_size, True, batch_size, coco_json
     )
     val_dataset, val_loader, val_sampler = build_dataloader(
-        val_dir, img_size, rank, world_size, False, batch_size
+        val_dir, img_size, rank, world_size, False, batch_size, coco_json
     )
 
     # Model
@@ -127,6 +130,8 @@ def main_worker(rank, world_size, args):
                 torch.save(
                     model.module.state_dict(), project_dir / "checkpoints" / "best.pth"
                 )
+                with open(project_dir / "eval" / "best_eval.txt", "w") as f:
+                    json.dump(stats, f, indent=2)
 
             ckpt = {
                 "epoch": epoch,
@@ -229,6 +234,20 @@ if __name__ == "__main__":
         default="pycocotools",
         choices=["pycocotools", "torchmetrics"],
         help="Evaluation framework to choose from. Defaulse to pycocotools",
+    )
+
+    parser.add_argument(
+        "--dataset-format",
+        type=str,
+        default="yolo",
+        choices=["yolo", "coco"],
+        help="Format of the dataset",
+    )
+    parser.add_argument(
+        "--coco-json",
+        type=str,
+        default=None,
+        help="Path to the json of the COCO-format dataset",
     )
 
     args = parser.parse_args()
