@@ -187,7 +187,8 @@ def eval_one_epoch(
         "eval/precision": avg_prec,
     }
 
-    logger.log(stats)
+    if logger is not None:
+        logger.log(stats)
     return stats
 
 
