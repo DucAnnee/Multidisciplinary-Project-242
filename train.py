@@ -24,51 +24,50 @@ from model import RetinaClassificationHeadDropout
 
 
 def main_worker(rank, world_size, args):
-    # Hyperparameters and paths
-    data_yaml = args.data_yaml
-    project_dir = args.project_dir
     train_dir = args.train_dir
     val_dir = args.val_dir
-    epochs = args.epochs
-    batch_size = args.batch_size
-    img_size = args.img_size
-    lr0 = args.lr0
-    lrf = args.lrf
-    momentum = args.momentum
-    weight_decay = args.weight_decay
-    dropout_p = args.dropout_p
-    num_classes = args.num_classes
-    seed = args.seed
-    enable_logger = args.enable_logger
-    evaluate_api = args.evaluate_api
-    wandb_project = args.wandb_project
-    train_coco_json = args.train_coco_json
-    test_coco_json = args.test_coco_json
 
     # Output dirs
-    (project_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
-    (project_dir / "logs").mkdir(parents=True, exist_ok=True)
-    (project_dir / "eval").mkdir(parents=True, exist_ok=True)
+    (args.project_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
+    (args.project_dir / "logs").mkdir(parents=True, exist_ok=True)
+    (args.project_dir / "eval").mkdir(parents=True, exist_ok=True)
 
     # Load data.yaml
-    with open(data_yaml) as f:
-        data = yaml.safe_load(f)
-    class_names = data["names"]
+    class_names = None
+    if Path(args.data_yaml).is_dir():
+        with open(args.data_yaml) as f:
+            data = yaml.safe_load(f)
+        class_names = data["names"]
+        train_dir = data.get("train", None)
+        # test_dir = data.get("test", None)
+        val_dir = data.get("val", None)
 
     # DDP init
     device = ddp_init(rank, world_size)
 
     # Seed set
-    random.seed(seed + rank)
-    torch.manual_seed(seed + rank)
-    torch.cuda.manual_seed_all(seed + rank)
+    random.seed(args.seed + rank)
+    torch.manual_seed(args.seed + rank)
+    torch.cuda.manual_seed_all(args.seed + rank)
 
     # Dataset, DistributedSampler, DataLoader
     train_dataset, train_loader, train_sampler = build_dataloader(
-        train_dir, img_size, rank, world_size, True, batch_size, train_coco_json
+        train_dir,
+        args.img_size,
+        rank,
+        world_size,
+        True,
+        args.batch_size,
+        args.train_coco_json,
     )
     val_dataset, val_loader, val_sampler = build_dataloader(
-        val_dir, img_size, rank, world_size, False, batch_size, test_coco_json
+        val_dir,
+        args.img_size,
+        rank,
+        world_size,
+        False,
+        args.batch_size,
+        args.test_coco_json,
     )
 
     # Model
@@ -78,29 +77,32 @@ def main_worker(rank, world_size, args):
     model.head.classification_head = RetinaClassificationHeadDropout(
         in_channels=256,
         num_anchors=num_anchors,
-        num_classes=num_classes,
-        dropout=dropout_p,
+        num_classes=args.num_classes,
+        dropout=args.dropout_p,
     )
     model.to(device)
     model = DDP(model, device_ids=[rank], output_device=rank)
 
     # Optimizer, LR scheduler
     optimizer = optim.SGD(
-        model.parameters(), lr=lr0, momentum=momentum, weight_decay=weight_decay
+        model.parameters(),
+        lr=args.lr0,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay,
     )
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=epochs, eta_min=lrf
+        optimizer, T_max=args.epochs, eta_min=args.lrf
     )
 
     # WandB
     logger = None
-    if rank == 0 and enable_logger:
-        logger = wandb_init(lr0, epochs, batch_size, wandb_project)
+    if rank == 0 and args.enable_logger:
+        logger = wandb_init(args.lr0, args.epochs, args.batch_size, args.wandb_project)
 
     # Training loop
     best_map = -1.0
 
-    for epoch in range(1, epochs + 1):
+    for epoch in range(1, args.epochs + 1):
         # Train
         train_one_epoch(
             model,
@@ -109,14 +111,14 @@ def main_worker(rank, world_size, args):
             train_sampler,
             scheduler,
             epoch,
-            epochs,
+            args.epochs,
             rank,
             logger,
         )
 
         # Validation
         if rank == 0:
-            if evaluate_api == "pycocotools":
+            if args.evaluate_api == "pycocotools":
                 stats = eval_one_epoch(
                     model, val_loader, val_dataset, class_names, rank, logger
                 )
@@ -129,9 +131,10 @@ def main_worker(rank, world_size, args):
             if mAP5095 > best_map:
                 best_map = mAP5095
                 torch.save(
-                    model.module.state_dict(), project_dir / "checkpoints" / "best.pth"
+                    model.module.state_dict(),
+                    args.project_dir / "checkpoints" / "best.pth",
                 )
-                with open(project_dir / "eval" / "best_eval.txt", "w") as f:
+                with open(args.project_dir / "eval" / "best_eval.txt", "w") as f:
                     json.dump(stats, f, indent=2)
 
             ckpt = {
@@ -142,7 +145,7 @@ def main_worker(rank, world_size, args):
                 "scheduler_state_dict": scheduler.state_dict(),
             }
 
-            ckpt_path = project_dir / "checkpoints" / f"last.pth"
+            ckpt_path = args.project_dir / "checkpoints" / f"last.pth"
             torch.save(ckpt, ckpt_path)
 
     if rank == 0:
