@@ -110,6 +110,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    args.project_dir = Path(args.project_dir)
     mp.set_start_method("fork", force=True)
     main(args)
