@@ -53,6 +53,7 @@ def main_worker(rank, world_size, args):
     # Dataset, DistributedSampler, DataLoader
     train_dataset, train_loader, train_sampler = build_dataloader(
         train_dir,
+        args.dataset_format,
         args.img_size,
         rank,
         world_size,
@@ -62,6 +63,7 @@ def main_worker(rank, world_size, args):
     )
     val_dataset, val_loader, val_sampler = build_dataloader(
         val_dir,
+        args.dataset_format,
         args.img_size,
         rank,
         world_size,
