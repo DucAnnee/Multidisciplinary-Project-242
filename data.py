@@ -137,13 +137,18 @@ class YoloDataset(Dataset):
                 y2 = (yc + h / 2) * H
                 boxes.append([x1, y1, x2, y2])
                 labels.append(int(c))
-
+        if boxes:
+            boxes_t = torch.tensor(boxes, dtype=torch.float32)
+            labels_t = torch.tensor(labels, dtype=torch.int64)
+        else:
+            boxes_t = torch.empty((0, 4), dtype=torch.float32)
+            labels_t = torch.empty((0,), dtype=torch.int64)
         if self.transforms:
             img = self.transforms(img)
 
         target = {
-            "boxes": torch.tensor(boxes, dtype=torch.float32),
-            "labels": torch.tensor(labels, dtype=torch.int64),
+            "boxes": boxes_t,
+            "labels": labels_t,
         }
         return img, target
 
