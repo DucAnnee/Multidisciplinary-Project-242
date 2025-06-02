@@ -85,6 +85,7 @@ class YoloDataset(Dataset):
     def __init__(self, img_dir, transforms=None):
         self.transforms = transforms
 
+        folder_type = img.dir.split("/")[-1]
         img_dir = Path(img_dir)
         if not img_dir.exists():
             raise ValueError(f"Path not found: {img_dir}")
@@ -94,6 +95,14 @@ class YoloDataset(Dataset):
         else:
             images_path = img_dir
 
+        if (images_path.parent / "labels").is_dir():
+            self.labels_dir = images_path.parent / "labels"
+        else:
+            self.labels_dir = images_path.parent.parent / "labels" / folder_type
+
+        if not self.labels_dir.is_dir():
+            raise ValueError(f"Labels folder not found: {self.labels_dir!r}")
+
         exts = ("*.jpg", "*.jpeg", "*.png", "*.bmp", "*.tif")
         self.images = []
         for ext in exts:
@@ -102,10 +111,6 @@ class YoloDataset(Dataset):
 
         if len(self.images) == 0:
             raise ValueError(f"No images found in {images_path!r}")
-
-        self.labels_dir = images_path.parent / "labels"
-        if not self.labels_dir.is_dir():
-            raise ValueError(f"Labels folder not found: {self.labels_dir!r}")
 
     def __len__(self):
         return len(self.images)
