@@ -270,5 +270,6 @@ def eval_one_epoch_tm(
     }
 
     # log & checkpoint
-    logger.log(stats)
+    if logger is not None:
+        logger.log(stats)
     return stats
