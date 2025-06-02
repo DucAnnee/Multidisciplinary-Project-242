@@ -17,7 +17,7 @@ from torchvision.models.detection import (
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from utils import wandb_init
-from engine import train_one_epoch, eval_one_epoch, eval_one_epoch_tmtrain
+from engine import train_one_epoch, eval_one_epoch, eval_one_epoch_tm
 from ddp import ddp_init
 from data import build_dataloader
 from model import RetinaClassificationHeadDropout
