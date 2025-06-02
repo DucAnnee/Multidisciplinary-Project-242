@@ -40,6 +40,7 @@ def main_worker(rank, world_size, args):
     seed = args.seed
     enable_logger = args.enable_logger
     evaluate_api = args.evaluate_api
+    wandb_project = args.wandb_project
 
     # Output dirs
     (project_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
@@ -90,7 +91,7 @@ def main_worker(rank, world_size, args):
     # WandB
     logger = None
     if rank == 0 and enable_logger:
-        logger = wandb_init(lr0, epochs, batch_size)
+        logger = wandb_init(lr0, epochs, batch_size, wandb_project)
 
     # Training loop
     best_map = -1.0
@@ -214,6 +215,12 @@ if __name__ == "__main__":
         type=int,
         default=0,
         help="Enable WandB logging. Defaults to 0 (disabled) ",
+    )
+    parser.add_argument(
+        "--wandb-project",
+        type=str,
+        default="mp242",
+        help="Name of the WandB project",
     )
 
     parser.add_argument(
