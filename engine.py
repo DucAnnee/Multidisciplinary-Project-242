@@ -1,3 +1,4 @@
+from logging import exception
 import torch
 from tqdm import tqdm
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
@@ -83,7 +84,12 @@ def eval_one_epoch(
             images = [img.to(rank) for img in images]
             targets = [{k: v.to(rank) for k, v in t.items()} for t in targets]
 
-            outputs = model(images)
+            try:
+                outputs = model(images)
+            except Exception as e:
+                print("images:", images)
+                print("targets:", targets)
+                print("Exception during model inference:", e)
 
             for out in outputs:
                 all_dets.append(
