@@ -16,7 +16,7 @@ from torchvision.models.detection import (
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from utils import wandb_init
-from engine import train_one_epoch, eval_one_epoch
+from engine import train_one_epoch, eval_one_epoch, eval_one_epoch_tm
 from ddp import ddp_init
 from data import build_dataloader
 from model import RetinaClassificationHeadDropout
@@ -109,7 +109,7 @@ def main_worker(rank, world_size, args):
 
         # Validation
         if rank == 0:
-            stats = eval_one_epoch(
+            stats = eval_one_epoch_tm(
                 model, val_loader, val_dataset, class_names, rank, logger
             )
             mAP5095 = stats["eval/mAP5095"]
