@@ -62,7 +62,7 @@ def main(args):
         class_names,
         0,
         1,
-        args.epochs,
+        1,
         None,
     )
 
@@ -76,9 +76,6 @@ if __name__ == "__main__":
         type=str,
         default="/kaggle/input/bok-choy-disease-detection-yolo-format/data.yaml",
         help="Path to the data.yaml file",
-    )
-    parser.add_argument(
-        "--epochs", "-e", type=int, default=100, help="Number of training epochs"
     )
     parser.add_argument("--batch-size", "-b", type=int, default=16, help="Batch size")
     parser.add_argument(
