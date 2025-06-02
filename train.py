@@ -34,7 +34,7 @@ def main_worker(rank, world_size, args):
 
     # Load data.yaml
     class_names = None
-    if Path(args.data_yaml).is_dir():
+    if Path(args.data_yaml).exists():
         with open(args.data_yaml) as f:
             data = yaml.safe_load(f)
         class_names = data["names"]
