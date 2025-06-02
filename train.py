@@ -128,11 +128,25 @@ def main_worker(rank, world_size, args):
         if rank == 0:
             if args.evaluate_api == "pycocotools":
                 stats = eval_one_epoch(
-                    model, val_loader, val_dataset, class_names, rank, logger
+                    model,
+                    val_loader,
+                    val_dataset,
+                    class_names,
+                    rank,
+                    epoch,
+                    args.epochs,
+                    logger,
                 )
             else:
                 stats = eval_one_epoch_tm(
-                    model, val_loader, val_dataset, class_names, rank, logger
+                    model,
+                    val_loader,
+                    val_dataset,
+                    class_names,
+                    rank,
+                    epoch,
+                    args.epochs,
+                    logger,
                 )
             mAP5095 = stats["eval/mAP5095"]
 

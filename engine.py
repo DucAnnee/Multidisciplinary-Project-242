@@ -74,6 +74,8 @@ def eval_one_epoch(
     val_dataset,
     class_names,
     rank,
+    epoch,
+    epochs,
     logger,
 ):
     model.eval()
