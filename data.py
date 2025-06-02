@@ -85,7 +85,7 @@ class YoloDataset(Dataset):
     def __init__(self, img_dir, transforms=None):
         self.transforms = transforms
 
-        folder_type = img.dir.split("/")[-1]
+        folder_type = img_dir.split("/")[-1]
         img_dir = Path(img_dir)
         if not img_dir.exists():
             raise ValueError(f"Path not found: {img_dir}")
