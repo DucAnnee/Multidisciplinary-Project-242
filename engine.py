@@ -2,8 +2,12 @@ import torch
 from tqdm import tqdm
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
+from torchvision.ops import box_iou
 from PIL import Image
 import numpy as np
+
+EPS = 1e-16
 
 
 def train_one_epoch(
@@ -163,6 +167,85 @@ def eval_one_epoch(
         "eval/mAP50": mAP50,
         "eval/recall": avg_recall,
         "eval/precision": avg_prec,
+    }
+
+    # log & checkpoint
+    logger.log(stats)
+    return stats
+
+
+def _pr_stats(pred, tgt, iou_thr: float = 0.50):
+    """
+    Return TP, FP, FN for a single image at the given IoU threshold.
+    - pred, tgt are dicts with .boxes, .labels, .scores (pred only)
+    """
+    pb, tb = pred["boxes"], tgt["boxes"]
+    pl, tl = pred["labels"], tgt["labels"]
+    if pb.numel() == 0 and tb.numel() == 0:
+        return 0, 0, 0
+    if pb.numel() == 0:  # missed everything
+        return 0, 0, len(tb)
+    if tb.numel() == 0:  # background image, every box is FP
+        return 0, len(pb), 0
+
+    ious = box_iou(pb, tb)  # [n_pred, n_gt]
+    matched_gt = set()
+    tp = fp = 0
+    # sort predictions by descending confidence
+    order = pred["scores"].argsort(descending=True)
+    for i in order:
+        gt_idx = torch.argmax(ious[i])  # best IoU gt
+        if (
+            ious[i, gt_idx] >= iou_thr
+            and pl[i] == tl[gt_idx]
+            and gt_idx.item() not in matched_gt
+        ):
+            tp += 1
+            matched_gt.add(gt_idx.item())
+        else:
+            fp += 1
+    fn = len(tb) - len(matched_gt)
+    return tp, fp, fn
+
+
+def eval_one_epoch_tm(
+    model,
+    val_loader,
+    val_dataset,
+    class_names,
+    rank,
+    logger,
+):
+    model.eval()
+    metric = MeanAveragePrecision(box_format="xyxy", iou_type="bbox")
+    tp_all = fp_all = fn_all = 0
+
+    with torch.no_grad():
+        for images, targets in val_loader:
+            images = [img.to(rank) for img in images]
+            targets = [{k: v.to(rank) for k, v in t.items()} for t in targets]
+            outputs = model(images)
+            metric.update(outputs, targets)
+            for p, t in zip(outputs, targets):
+                tp, fp, fn = _pr_stats(p, t, iou_thr=0.50)
+                tp_all += tp
+                fp_all += fp
+                fn_all += fn
+
+    tm = metric.compute()  # dict of many COCO stats
+    mAP5095 = float(tm["map"])
+    mAP50 = float(tm["map_50"])
+
+    precision = tp_all / (tp_all + fp_all + EPS)
+    recall = tp_all / (tp_all + fn_all + EPS)
+    f1 = 2 * precision * recall / (precision + recall + EPS)
+
+    stats = {
+        "eval/mAP5095": mAP5095,
+        "eval/mAP50": mAP50,
+        "eval/recall": recall,
+        "eval/precision": precision,
+        "eval/f1": f1,
     }
 
     # log & checkpoint
