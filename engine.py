@@ -78,9 +78,9 @@ def eval_one_epoch(
 ):
     model.eval()
     all_dets, all_targets = [], []
-
+    pbar = tqdm(val_loader, desc=f"[Val epoch {epoch}/{epochs}]", leave=False)
     with torch.no_grad():
-        for images, targets in val_loader:
+        for images, targets in pbar:
             images = [img.to(rank) for img in images]
             targets = [{k: v.to(rank) for k, v in t.items()} for t in targets]
 
