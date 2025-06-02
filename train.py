@@ -17,7 +17,7 @@ from torchvision.models.detection import (
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from utils import wandb_init
-from engine import train_one_epoch, eval_one_epoch, eval_one_epoch_tm
+from engine import train_one_epoch, eval_one_epoch, eval_one_epoch_tmtrain
 from ddp import ddp_init
 from data import build_dataloader
 from model import RetinaClassificationHeadDropout
@@ -99,7 +99,7 @@ def main_worker(rank, world_size, args):
     # WandB
     logger = None
     if rank == 0 and args.enable_logger:
-        logger = (
+        logger = wandb_init(
             args.lr0,
             args.epochs,
             args.batch_size,
