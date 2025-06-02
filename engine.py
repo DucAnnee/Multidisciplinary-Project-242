@@ -159,12 +159,18 @@ def eval_one_epoch(
     stats = cocoEval.stats
     mAP5095 = float(stats[0])
     mAP50 = float(stats[1])
+
     recall_mat = cocoEval.eval["recall"]
-    recall50 = recall_mat[0, :, :, 0]
+    # recall   : [T, K, A, M]      (IoU thresh, class, area, maxDet)
+    recall50 = recall_mat[0, :, 0, 2]
     avg_recall = float(np.nanmean(recall50))
+
     prec_mat = cocoEval.eval["precision"]
+    # precision: [T, R, K, A, M]   (IoU thresh, recall thresh, class, area, maxDet)
     precision50 = prec_mat[0, :, :, 0, 2]
     avg_prec = float(np.nanmean(precision50))
+
+    print(f"[DEBUG PRINT] avg_recall: {avg_recall}, avg_prec: {avg_prec}")
 
     stats = {
         "eval/mAP5095": mAP5095,
