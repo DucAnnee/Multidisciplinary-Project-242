@@ -42,7 +42,8 @@ def main_worker(rank, world_size, args):
     enable_logger = args.enable_logger
     evaluate_api = args.evaluate_api
     wandb_project = args.wandb_project
-    coco_json = args.coco_json
+    train_coco_json = args.train_coco_json
+    test_coco_json = args.test_coco_json
 
     # Output dirs
     (project_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
@@ -64,10 +65,10 @@ def main_worker(rank, world_size, args):
 
     # Dataset, DistributedSampler, DataLoader
     train_dataset, train_loader, train_sampler = build_dataloader(
-        train_dir, img_size, rank, world_size, True, batch_size, coco_json
+        train_dir, img_size, rank, world_size, True, batch_size, train_coco_json
     )
     val_dataset, val_loader, val_sampler = build_dataloader(
-        val_dir, img_size, rank, world_size, False, batch_size, coco_json
+        val_dir, img_size, rank, world_size, False, batch_size, test_coco_json
     )
 
     # Model
@@ -244,10 +245,16 @@ if __name__ == "__main__":
         help="Format of the dataset",
     )
     parser.add_argument(
-        "--coco-json",
+        "--train-coco-json",
         type=str,
         default=None,
-        help="Path to the json of the COCO-format dataset",
+        help="Path to the json of the COCO-format train dataset",
+    )
+    parser.add_argument(
+        "--test-coco-json",
+        type=str,
+        default=None,
+        help="Path to the json of the COCO-format test dataset",
     )
 
     args = parser.parse_args()
