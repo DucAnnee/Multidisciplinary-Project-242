@@ -99,7 +99,13 @@ def main_worker(rank, world_size, args):
     # WandB
     logger = None
     if rank == 0 and args.enable_logger:
-        logger = wandb_init(args.lr0, args.epochs, args.batch_size, args.wandb_project)
+        logger = (
+            args.lr0,
+            args.epochs,
+            args.batch_size,
+            args.wandb_entity,
+            args.wandb_project,
+        )
 
     # Training loop
     best_map = -1.0
@@ -232,6 +238,12 @@ if __name__ == "__main__":
         type=str,
         default="mp242",
         help="Name of the WandB project",
+    )
+    parser.add_argument(
+        "--wandb-entity",
+        type=str,
+        default=None,
+        help="Entity of the WandB to save the log to",
     )
 
     parser.add_argument(

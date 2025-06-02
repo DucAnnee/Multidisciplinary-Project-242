@@ -3,7 +3,7 @@ import wandb
 from PIL import ImageDraw, ImageFont
 
 
-def wandb_init(lr0, epochs, batch_size, project="mp242"):
+def wandb_init(lr0, epochs, batch_size, entity=None, project="mp242"):
     api_key = os.getenv("WANDB_API_KEY", None)
 
     if api_key is None:
@@ -23,6 +23,7 @@ def wandb_init(lr0, epochs, batch_size, project="mp242"):
     wandb.login(key=api_key)
 
     logger = wandb.init(
+        entity=entity,
         project=project,
         config={"lr0": lr0, "epochs": epochs, "batch_size": batch_size},
     )
