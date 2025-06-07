@@ -148,6 +148,7 @@ def main_worker(rank, world_size, args):
                 rank,
                 epoch,
                 args.epochs,
+                det_metrics,
                 logger,
             )
             mAP5095 = stats["eval/mAP5095"]
