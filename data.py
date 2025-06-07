@@ -126,11 +126,13 @@ class YoloDataset(Dataset):
         boxes, labels = [], []
         if label_path.exists():
             for line in open(label_path):
+                if len(line.strip().split()) > 5:
+                    print(f"Skipping invalid line in {label_path}: {line.strip()}")
+                    continue
                 try:
-                    c, xc, yc, w, h = tuple(map(float, line.strip().split()[:5]))
+                    c, xc, yc, w, h = tuple(map(float, line.strip().split()))
                 except:
-                    print(line)
-                    raise ValueError()
+                    raise ValueError("Invalid label format in line: " + line.strip())
                 x1 = (xc - w / 2) * W
                 y1 = (yc - h / 2) * H
                 x2 = (xc + w / 2) * W
