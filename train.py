@@ -16,8 +16,10 @@ from torchvision.models.detection import (
 )
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+from ultralytics.utils.metrics import DetMetrics
+
 from utils import wandb_init
-from engine import train_one_epoch, eval_one_epoch, eval_one_epoch_tm
+from engine import train_one_epoch, eval_one_epoch
 from ddp import ddp_init
 from data import build_dataloader
 from model import RetinaClassificationHeadDropout
@@ -73,9 +75,16 @@ def main_worker(rank, world_size, args):
     )
 
     # Model
-    model = retinanet_resnet50_fpn_v2(weights=RetinaNet_ResNet50_FPN_V2_Weights.COCO_V1)
-    num_anchors = model.head.classification_head.num_anchors
+    model = retinanet_resnet50_fpn_v2(weights=RetinaNet_ResNet50_FPN_V2_Weights.DEFAULT)
+    # Freeze all backbone (ResNet50+FPN) parameters
+    for _, param in model.backbone.named_parameters():
+        param.requires_grad = False
+    for _, param in model.backbone.body.named_parameters():
+        param.requires_grad = False
+    for _, param in model.backbone.fpn.named_parameters():
+        param.requires_grad = False
     # replace head
+    num_anchors = model.head.classification_head.num_anchors
     model.head.classification_head = RetinaClassificationHeadDropout(
         in_channels=256,
         num_anchors=num_anchors,
@@ -107,6 +116,11 @@ def main_worker(rank, world_size, args):
             args.wandb_project,
         )
 
+    # YOLO's DetMetrics
+    det_metrics = DetMetrics(
+        save_dir=args.project_dir / "eval", plot=True, names=class_names
+    )
+
     # Training loop
     best_map = -1.0
 
@@ -126,28 +140,16 @@ def main_worker(rank, world_size, args):
 
         # Validation
         if rank == 0:
-            if args.evaluate_api == "pycocotools":
-                stats = eval_one_epoch(
-                    model,
-                    val_loader,
-                    val_dataset,
-                    class_names,
-                    rank,
-                    epoch,
-                    args.epochs,
-                    logger,
-                )
-            else:
-                stats = eval_one_epoch_tm(
-                    model,
-                    val_loader,
-                    val_dataset,
-                    class_names,
-                    rank,
-                    epoch,
-                    args.epochs,
-                    logger,
-                )
+            stats = eval_one_epoch(
+                model,
+                val_loader,
+                val_dataset,
+                class_names,
+                rank,
+                epoch,
+                args.epochs,
+                logger,
+            )
             mAP5095 = stats["eval/mAP5095"]
 
             if mAP5095 > best_map:
@@ -258,14 +260,6 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="Entity of the WandB to save the log to",
-    )
-
-    parser.add_argument(
-        "--evaluate-api",
-        type=str,
-        default="pycocotools",
-        choices=["pycocotools", "torchmetrics"],
-        help="Evaluation framework to choose from. Defaulse to pycocotools",
     )
 
     parser.add_argument(
