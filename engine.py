@@ -86,44 +86,47 @@ def eval_one_epoch(
         for images, targets in pbar:
             images = [img.to(rank) for img in images]
             targets = [{k: v.to(rank) for k, v in t.items()} for t in targets]
-
-            try:
-                outputs = model(images)
-            except Exception as e:
-                print("images:", images)
-                print("targets:", targets)
-                print("Exception during model inference:", e)
+            outputs = model(images)
 
             for out, tgt in zip(outputs, targets):
                 pb, ps, pl = out["boxes"], out["scores"], out["labels"]
                 tb, tl = tgt["boxes"], tgt["labels"]
+
                 if pb.numel() and tb.numel():
                     iou = box_iou(pb, tb)
                     best_iou, best_idx = iou.max(dim=1)
-                    tp = (best_iou > 0.5) & (pl == tl[best_idx])
+                    match = pl == tl[best_idx]
+                    iouv = np.linspace(0.5, 0.95, 10)
+                    tp_matrix = np.zeros((iouv.shape[0], best_iou.shape[0]), dtype=bool)
+                    best_iou_np = best_iou.cpu().numpy()
+                    match_np = match.cpu().numpy()
+                    for i, thr in enumerate(iouv):
+                        tp_matrix[i] = (best_iou_np > thr) & match_np
+                    tp = tp_matrix
                 else:
-                    tp = torch.zeros(pb.shape[0], dtype=torch.bool, device=pb.device)
+                    num_det = pb.shape[0]
+                    tp = np.zeros((10, num_det), dtype=bool)
 
                 stats.append(
                     (
-                        tp.cpu().numpy(),
+                        tp,
                         ps.cpu().numpy(),
                         pl.cpu().numpy(),
                         tl.cpu().numpy(),
                     )
                 )
 
-    tp_all, ps_all, pl_all, tl_all = zip(*stats)
-    tp_all = np.concatenate(tp_all)
-    conf_all = np.concatenate(ps_all)
-    pl_all = np.concatenate(pl_all)
-    tl_all = np.concatenate(tl_all)
+    tp_all, conf_all, pcls_all, tcls_all = zip(*stats)
+    tp_all = np.concatenate(tp_all, axis=1)
+    conf_all = np.concatenate(conf_all, axis=0)
+    pcls_all = np.concatenate(pcls_all, axis=0)
+    tcls_all = np.concatenate(tcls_all, axis=0)
 
     det_metrics.process(
         tp=tp_all,
         conf=conf_all,
-        pred_cls=pl_all,
-        target_cls=tl_all,
+        pred_cls=pcls_all,
+        target_cls=tcls_all,
     )
     results = det_metrics.results_dict
 

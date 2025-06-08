@@ -14,6 +14,8 @@ from engine import eval_one_epoch
 from data import build_dataloader
 from model import RetinaClassificationHeadDropout
 
+from ultralytics.utils.metrics import DetMetrics
+
 
 def main(args):
     # Load data.yaml
@@ -55,6 +57,9 @@ def main(args):
         None,
     )
 
+    # YOLO's DetMetrics
+    det_metrics = DetMetrics(plot=True, names=class_names)
+
     stats = eval_one_epoch(
         model,
         test_loader,
@@ -63,6 +68,7 @@ def main(args):
         0,
         1,
         1,
+        det_metrics,
         None,
     )
 
