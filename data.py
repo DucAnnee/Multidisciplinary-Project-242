@@ -127,7 +127,7 @@ class YoloDataset(Dataset):
         if label_path.exists():
             for line in open(label_path):
                 if len(line.strip().split()) > 5:
-                    print(f"Skipping invalid line in {label_path}: {line.strip()}")
+                    # print(f"Skipping invalid line in {label_path}: {line.strip()}")
                     continue
                 try:
                     c, xc, yc, w, h = tuple(map(float, line.strip().split()))

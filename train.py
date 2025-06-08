@@ -16,8 +16,6 @@ from torchvision.models.detection import (
 )
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from ultralytics.utils.metrics import DetMetrics
-
 from utils import wandb_init
 from engine import train_one_epoch, eval_one_epoch
 from ddp import ddp_init
@@ -116,11 +114,6 @@ def main_worker(rank, world_size, args):
             args.wandb_project,
         )
 
-    # YOLO's DetMetrics
-    det_metrics = DetMetrics(
-        save_dir=args.project_dir / "eval", plot=True, names=class_names
-    )
-
     # Training loop
     best_map = -1.0
 
@@ -148,7 +141,6 @@ def main_worker(rank, world_size, args):
                 rank,
                 epoch,
                 args.epochs,
-                det_metrics,
                 logger,
             )
             mAP5095 = stats["eval/mAP5095"]

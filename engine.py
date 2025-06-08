@@ -68,85 +68,6 @@ def train_one_epoch(
     scheduler.step()
 
 
-def eval_one_epoch(
-    model,
-    val_loader,
-    val_dataset,
-    class_names,
-    rank,
-    epoch,
-    epochs,
-    det_metrics,
-    logger,
-):
-    model.eval()
-    stats = []
-    pbar = tqdm(val_loader, desc=f"[Val epoch {epoch}/{epochs}]", leave=False)
-    with torch.no_grad():
-        for images, targets in pbar:
-            images = [img.to(rank) for img in images]
-            targets = [{k: v.to(rank) for k, v in t.items()} for t in targets]
-            outputs = model(images)
-
-            for out, tgt in zip(outputs, targets):
-                pb, ps, pl = out["boxes"], out["scores"], out["labels"]
-                tb, tl = tgt["boxes"], tgt["labels"]
-
-                if pb.numel() and tb.numel():
-                    iou = box_iou(pb, tb)
-                    best_iou, best_idx = iou.max(dim=1)
-                    match = pl == tl[best_idx]
-                    iouv = np.linspace(0.5, 0.95, 10)
-                    tp_matrix = np.zeros((iouv.shape[0], best_iou.shape[0]), dtype=bool)
-                    best_iou_np = best_iou.cpu().numpy()
-                    match_np = match.cpu().numpy()
-                    for i, thr in enumerate(iouv):
-                        tp_matrix[i] = (best_iou_np > thr) & match_np
-                    tp = tp_matrix
-                else:
-                    num_det = pb.shape[0]
-                    tp = np.zeros((10, num_det), dtype=bool)
-
-                stats.append(
-                    (
-                        tp,
-                        ps.cpu().numpy(),
-                        pl.cpu().numpy(),
-                        tl.cpu().numpy(),
-                    )
-                )
-
-    tp_all, conf_all, pcls_all, tcls_all = zip(*stats)
-    tp_all = np.concatenate(tp_all, axis=1)
-    conf_all = np.concatenate(conf_all, axis=0)
-    pcls_all = np.concatenate(pcls_all, axis=0)
-    tcls_all = np.concatenate(tcls_all, axis=0)
-
-    det_metrics.process(
-        tp=tp_all,
-        conf=conf_all,
-        pred_cls=pcls_all,
-        target_cls=tcls_all,
-    )
-    results = det_metrics.results_dict
-
-    mAP5095 = results["metrics/mAP50-95(B)"]
-    mAP50 = results["metrics/mAP50(B)"]
-    ar = results["metrics/recall(B)"]
-    ap = results["metrics/precision(B)"]
-
-    stats = {
-        "eval/mAP5095": mAP5095,
-        "eval/mAP50": mAP50,
-        "eval/recall": ar,
-        "eval/precision": ap,
-    }
-
-    if logger is not None:
-        logger.log(stats)
-    return stats
-
-
 # def eval_one_epoch(
 #     model,
 #     val_loader,
@@ -155,117 +76,196 @@ def eval_one_epoch(
 #     rank,
 #     epoch,
 #     epochs,
+#     det_metrics,
 #     logger,
 # ):
 #     model.eval()
-#     all_dets, all_targets = [], []
+#     stats = []
 #     pbar = tqdm(val_loader, desc=f"[Val epoch {epoch}/{epochs}]", leave=False)
 #     with torch.no_grad():
 #         for images, targets in pbar:
 #             images = [img.to(rank) for img in images]
 #             targets = [{k: v.to(rank) for k, v in t.items()} for t in targets]
+#             outputs = model(images)
 #
-#             try:
-#                 outputs = model(images)
-#             except Exception as e:
-#                 print("images:", images)
-#                 print("targets:", targets)
-#                 print("Exception during model inference:", e)
+#             for out, tgt in zip(outputs, targets):
+#                 pb, ps, pl = out["boxes"], out["scores"], out["labels"]
+#                 tb, tl = tgt["boxes"], tgt["labels"]
 #
-#             for out in outputs:
-#                 all_dets.append(
-#                     {
-#                         "boxes": out["boxes"].cpu(),
-#                         "scores": out["scores"].cpu(),
-#                         "labels": out["labels"].cpu(),
-#                     }
+#                 if pb.numel() and tb.numel():
+#                     iou = box_iou(pb, tb)
+#                     best_iou, best_idx = iou.max(dim=1)
+#                     match = pl == tl[best_idx]
+#                     iouv = np.linspace(0.5, 0.95, 10)
+#                     tp_matrix = np.zeros((iouv.shape[0], best_iou.shape[0]), dtype=bool)
+#                     best_iou_np = best_iou.cpu().numpy()
+#                     match_np = match.cpu().numpy()
+#                     for i, thr in enumerate(iouv):
+#                         tp_matrix[i] = (best_iou_np > thr) & match_np
+#                     tp = tp_matrix
+#                 else:
+#                     num_det = pb.shape[0]
+#                     tp = np.zeros((10, num_det), dtype=bool)
+#
+#                 stats.append(
+#                     (
+#                         tp,
+#                         ps.cpu().numpy(),
+#                         pl.cpu().numpy(),
+#                         tl.cpu().numpy(),
+#                     )
 #                 )
 #
-#             for t in targets:
-#                 all_targets.append(
-#                     {"boxes": t["boxes"].cpu(), "labels": t["labels"].cpu()}
-#                 )
+#     tp_all, conf_all, pcls_all, tcls_all = zip(*stats)
+#     tp_all = np.concatenate(tp_all, axis=1)
+#     conf_all = np.concatenate(conf_all, axis=0)
+#     pcls_all = np.concatenate(pcls_all, axis=0)
+#     tcls_all = np.concatenate(tcls_all, axis=0)
 #
-#     coco_gt = {
-#         "images": [],
-#         "annotations": [],
-#         "categories": [{"id": i, "name": n} for i, n in enumerate(class_names)],
-#     }
-#     ann_id = 0
-#     for img_id, (tgt, img_path) in enumerate(zip(all_targets, val_dataset.images)):
-#         w, h = Image.open(img_path).size
-#         coco_gt["images"].append(
-#             {"id": img_id, "width": w, "height": h, "file_name": img_path.name}
-#         )
-#         for box, lbl in zip(tgt["boxes"], tgt["labels"]):
-#             x1, y1, x2, y2 = box.tolist()
-#             ww, hh = x2 - x1, y2 - y1
-#             coco_gt["annotations"].append(
-#                 {
-#                     "id": ann_id,
-#                     "image_id": img_id,
-#                     "category_id": int(lbl.item()),
-#                     "bbox": [x1, y1, ww, hh],
-#                     "area": ww * hh,
-#                     "iscrowd": 0,
-#                 }
-#             )
-#             ann_id += 1
+#     det_metrics.process(
+#         tp=tp_all,
+#         conf=conf_all,
+#         pred_cls=pcls_all,
+#         target_cls=tcls_all,
+#     )
+#     results = det_metrics.results_dict
 #
-#     cocoGt = COCO()
-#     cocoGt.dataset = coco_gt
-#     cocoGt.createIndex()
-#
-#     coco_dt = []
-#     for img_id, det in enumerate(all_dets):
-#         for box, score, lbl in zip(det["boxes"], det["scores"], det["labels"]):
-#             x1, y1, x2, y2 = box.tolist()
-#             ww, hh = x2 - x1, y2 - y1
-#             coco_dt.append(
-#                 {
-#                     "image_id": img_id,
-#                     "category_id": int(lbl.item()),
-#                     "bbox": [x1, y1, ww, hh],
-#                     "score": float(score.item()),
-#                 }
-#             )
-#     if len(coco_dt) == 0:
-#         print("Warning: no detections in this epoch; skipping COCO eval.")
-#         return {
-#             "eval/mAP5095": 0.0,
-#             "eval/mAP50": 0.0,
-#             "eval/recall": 0.0,
-#             "eval/precision": 0.0,
-#         }
-#     cocoDt = cocoGt.loadRes(coco_dt)
-#     cocoEval = COCOeval(cocoGt, cocoDt, iouType="bbox")
-#     cocoEval.evaluate()
-#     cocoEval.accumulate()
-#     cocoEval.summarize()
-#
-#     stats = cocoEval.stats
-#     mAP5095 = float(stats[0])
-#     mAP50 = float(stats[1])
-#
-#     recall_mat = cocoEval.eval["recall"]
-#     # recall   : [T, K, A, M]      (IoU thresh, class, area, maxDet)
-#     recall50 = recall_mat[0, :, 0, 2]
-#     avg_recall = float(np.nanmean(recall50))
-#
-#     prec_mat = cocoEval.eval["precision"]
-#     # precision: [T, R, K, A, M]   (IoU thresh, recall thresh, class, area, maxDet)
-#     precision50 = prec_mat[0, :, :, 0, 2]
-#     avg_prec = float(np.nanmean(precision50))
-#
-#     print(f"[DEBUG PRINT] avg_recall: {avg_recall}, avg_prec: {avg_prec}")
+#     mAP5095 = results["metrics/mAP50-95(B)"]
+#     mAP50 = results["metrics/mAP50(B)"]
+#     ar = results["metrics/recall(B)"]
+#     ap = results["metrics/precision(B)"]
 #
 #     stats = {
 #         "eval/mAP5095": mAP5095,
 #         "eval/mAP50": mAP50,
-#         "eval/recall": avg_recall,
-#         "eval/precision": avg_prec,
+#         "eval/recall": ar,
+#         "eval/precision": ap,
 #     }
 #
 #     if logger is not None:
 #         logger.log(stats)
 #     return stats
+
+
+def eval_one_epoch(
+    model,
+    val_loader,
+    val_dataset,
+    class_names,
+    rank,
+    epoch,
+    epochs,
+    logger,
+):
+    model.eval()
+    all_dets, all_targets = [], []
+    pbar = tqdm(val_loader, desc=f"[Val epoch {epoch}/{epochs}]", leave=False)
+    with torch.no_grad():
+        for images, targets in pbar:
+            images = [img.to(rank) for img in images]
+            targets = [{k: v.to(rank) for k, v in t.items()} for t in targets]
+
+            try:
+                outputs = model(images)
+            except Exception as e:
+                print("images:", images)
+                print("targets:", targets)
+                print("Exception during model inference:", e)
+
+            for out in outputs:
+                all_dets.append(
+                    {
+                        "boxes": out["boxes"].cpu(),
+                        "scores": out["scores"].cpu(),
+                        "labels": out["labels"].cpu(),
+                    }
+                )
+
+            for t in targets:
+                all_targets.append(
+                    {"boxes": t["boxes"].cpu(), "labels": t["labels"].cpu()}
+                )
+
+    coco_gt = {
+        "images": [],
+        "annotations": [],
+        "categories": [{"id": i, "name": n} for i, n in enumerate(class_names)],
+    }
+    ann_id = 0
+    for img_id, (tgt, img_path) in enumerate(zip(all_targets, val_dataset.images)):
+        w, h = Image.open(img_path).size
+        coco_gt["images"].append(
+            {"id": img_id, "width": w, "height": h, "file_name": img_path.name}
+        )
+        for box, lbl in zip(tgt["boxes"], tgt["labels"]):
+            x1, y1, x2, y2 = box.tolist()
+            ww, hh = x2 - x1, y2 - y1
+            coco_gt["annotations"].append(
+                {
+                    "id": ann_id,
+                    "image_id": img_id,
+                    "category_id": int(lbl.item()),
+                    "bbox": [x1, y1, ww, hh],
+                    "area": ww * hh,
+                    "iscrowd": 0,
+                }
+            )
+            ann_id += 1
+
+    cocoGt = COCO()
+    cocoGt.dataset = coco_gt
+    cocoGt.createIndex()
+
+    coco_dt = []
+    for img_id, det in enumerate(all_dets):
+        for box, score, lbl in zip(det["boxes"], det["scores"], det["labels"]):
+            x1, y1, x2, y2 = box.tolist()
+            ww, hh = x2 - x1, y2 - y1
+            coco_dt.append(
+                {
+                    "image_id": img_id,
+                    "category_id": int(lbl.item()),
+                    "bbox": [x1, y1, ww, hh],
+                    "score": float(score.item()),
+                }
+            )
+    if len(coco_dt) == 0:
+        print("Warning: no detections in this epoch; skipping COCO eval.")
+        return {
+            "eval/mAP5095": 0.0,
+            "eval/mAP50": 0.0,
+            "eval/recall": 0.0,
+            "eval/precision": 0.0,
+        }
+    cocoDt = cocoGt.loadRes(coco_dt)
+    cocoEval = COCOeval(cocoGt, cocoDt, iouType="bbox")
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+    cocoEval.summarize()
+
+    stats = cocoEval.stats
+    mAP5095 = float(stats[0])
+    mAP50 = float(stats[1])
+
+    recall_mat = cocoEval.eval["recall"]
+    # recall   : [T, K, A, M]      (IoU thresh, class, area, maxDet)
+    recall50 = recall_mat[0, :, 0, 2]
+    avg_recall = float(np.nanmean(recall50))
+
+    prec_mat = cocoEval.eval["precision"]
+    # precision: [T, R, K, A, M]   (IoU thresh, recall thresh, class, area, maxDet)
+    precision50 = prec_mat[0, :, :, 0, 2]
+    avg_prec = float(np.nanmean(precision50))
+
+    print(f"[DEBUG PRINT] avg_recall: {avg_recall}, avg_prec: {avg_prec}")
+
+    stats = {
+        "eval/mAP5095": mAP5095,
+        "eval/mAP50": mAP50,
+        "eval/recall": avg_recall,
+        "eval/precision": avg_prec,
+    }
+
+    if logger is not None:
+        logger.log(stats)
+    return stats
