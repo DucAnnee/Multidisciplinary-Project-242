@@ -1,4 +1,5 @@
 import random
+from torchvision.models.detection.retinanet import RetinaNetClassificationHead
 import yaml
 import json
 
@@ -38,6 +39,7 @@ def main_worker(rank, world_size, args):
         with open(args.data_yaml) as f:
             data = yaml.safe_load(f)
         class_names = data["names"]
+        args.num_classes = len(class_names)
         train_dir = data.get("train", None)
         # test_dir = data.get("test", None)
         val_dir = data.get("val", None)
@@ -83,11 +85,19 @@ def main_worker(rank, world_size, args):
         param.requires_grad = False
     # replace head
     num_anchors = model.head.classification_head.num_anchors
-    model.head.classification_head = RetinaClassificationHeadDropout(
-        in_channels=256,
-        num_anchors=num_anchors,
-        num_classes=args.num_classes,
-        dropout=args.dropout_p,
+    model.head.classification_head = (
+        RetinaNetClassificationHead(
+            in_channels=256,
+            num_anchors=num_anchors,
+            num_classes=args.num_classes,
+        )
+        if not args.use_dropout_head
+        else RetinaClassificationHeadDropout(
+            in_channels=256,
+            num_anchors=num_anchors,
+            num_classes=args.num_classes,
+            dropout=args.dropout_p,
+        )
     )
     model.to(device)
     model = DDP(model, device_ids=[rank], output_device=rank)
@@ -273,6 +283,12 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="Path to the json of the COCO-format test dataset",
+    )
+    parser.add_argument(
+        "--use-dropout-head",
+        type=str,
+        default=True,
+        help="",
     )
 
     args = parser.parse_args()
